@@ -1,0 +1,36 @@
+[
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example6/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example6/linux/arm64/release/src/example6.cpp.o", "src/example6.cpp"],
+  "file": "src/example6.cpp"
+},
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example0/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example0/linux/arm64/release/src/example0.cpp.o", "src/example0.cpp"],
+  "file": "src/example0.cpp"
+},
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example2/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example2/linux/arm64/release/src/example2.cpp.o", "src/example2.cpp"],
+  "file": "src/example2.cpp"
+},
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example4/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example4/linux/arm64/release/src/example4.cpp.o", "src/example4.cpp"],
+  "file": "src/example4.cpp"
+},
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example5/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example5/linux/arm64/release/src/example5.cpp.o", "src/example5.cpp"],
+  "file": "src/example5.cpp"
+},
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example3/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example3/linux/arm64/release/src/example3.cpp.o", "src/example3.cpp"],
+  "file": "src/example3.cpp"
+},
+{
+  "directory": "/root/project/LearnCoroutine",
+  "arguments": ["clang++", "-c", "-Qunused-arguments", "-Isrc", "-I/root/.local/LLVM/include/c++/v1", "-I/root/.local/LLVM/include/aarch64-unknown-linux-gnu/c++/v1", "-Ibuild/.gens/example1/linux/arm64/release/platform/windows/idl", "-DNDEBUG", "-std=c++23", "-stdlib=libc++", "-fmodules", "-O3", "-o", "build/.objs/example1/linux/arm64/release/src/example1.cpp.o", "src/example1.cpp"],
+  "file": "src/example1.cpp"
+}]
