@@ -1,5 +1,36 @@
-# LearnCoroutine
 CPP20无栈协程全解: 关于标准协程，你所需要知道的一切。
+
+---
+- [-1. Why CPP20-coroutine?](#-1-why-cpp20-coroutine)
+- [0. 让我们先从一个add函数讲起(example0.cpp)](#0-让我们先从一个add函数讲起example0cpp)
+- [1. 协程版本的add函数(example1.cpp)](#1-协程版本的add函数example1cpp)
+  - [1.1 Future与Promise](#11-future与promise)
+  - [1.2 编译器对coro\_add的转换](#12-编译器对coro_add的转换)
+  - [1.3 协程的挂起与恢复：理解co\_await关键字及编译器的处理](#13-协程的挂起与恢复理解co_await关键字及编译器的处理)
+    - [1.3.1 对co\_await \<expr\>表达式的两步编译期转换](#131-对co_await-expr表达式的两步编译期转换)
+    - [1.3.2 通过Awaiter定制挂起和恢复行为](#132-通过awaiter定制挂起和恢复行为)
+  - [1.4 再回顾coro\_add()](#14-再回顾coro_add)
+- [2 协程帧内存布局（example2.cpp）](#2-协程帧内存布局example2cpp)
+  - [2.1 协程初始化后的第一次挂起 (initial\_suspend)](#21-协程初始化后的第一次挂起-initial_suspend)
+  - [2.2 协程的第二次挂起（co\_await）](#22-协程的第二次挂起co_await)
+  - [2.3 协程的第三次挂起（co\_await）](#23-协程的第三次挂起co_await)
+  - [2.4 协程的第四次挂起（co\_await）](#24-协程的第四次挂起co_await)
+  - [2.5 协程的第五次挂起（final\_suspend）](#25-协程的第五次挂起final_suspend)
+  - [2.6 对协程的最后一次观测](#26-对协程的最后一次观测)
+  - [2.7 小结](#27-小结)
+- [3 co\_yield关键字（example3.cpp）](#3-co_yield关键字example3cpp)
+- [4 协程框架简易原理(Scheduler/AsyncWorker) (example4.cpp)](#4-协程框架简易原理schedulerasyncworker-example4cpp)
+- [5 协程与其他协程/普通函数的互调用（example5.cpp）](#5-协程与其他协程普通函数的互调用example5cpp)
+  - [5.1 协程调用普通函数](#51-协程调用普通函数)
+- [5.2 协程调用协程 - 挂起](#52-协程调用协程---挂起)
+  - [5.2 协程调用协程 - 恢复](#52-协程调用协程---恢复)
+  - [5.3 实现协程间的链式调用示例——详解example5.cpp](#53-实现协程间的链式调用示例详解example5cpp)
+  - [5.4 无栈协程的本质局限——无栈属性的传递](#54-无栈协程的本质局限无栈属性的传递)
+- [6 标准协程的性能与内存开销（example6.cpp）](#6-标准协程的性能与内存开销example6cpp)
+  - [6.1 CPU优势](#61-cpu优势)
+  - [6.2 内存优势](#62-内存优势)
+  - [6.3 生态优势](#63-生态优势)
+  - [6.4 协程方案对比](#64-协程方案对比)
 # -1. Why CPP20-coroutine?
 笔者在一个超过百万行代码，超过百人协作开发的，高度性能敏感型的大型复杂软件工程的内核组工作了5年。  
 从工作体验来讲，5年的高强度工作中，代码开发的占比相当有限，每天的精力至少有50%以上消耗在定位各种复杂问题上。  
@@ -110,7 +141,7 @@ struct MyPromise {
 3. 以默认方式从Promise结构中构建`MyFuture`对象。
 4. 协程执行结束时的int结果存储在result_中。
 5. 遇到任何未被捕获的异常直接终止程序。
-# 1.2 编译器对coro_add的转换
+## 1.2 编译器对coro_add的转换
 有了Future与Promise，接下来让我们看看编译器是如何借助它们来处理coro_add()函数的，以伪代码作为示例，编译器将coro_add转换为如下代码：
 ```cpp
 MyFuture coro_add(int a, int b) {
@@ -129,7 +160,7 @@ FinalSuspend:
 上述转换是最简化转换逻辑，该逻辑中引入了两个关键字`co_await`以及`co_return`.  
 `co_return`的处理方式很简单，前面提到，广义上来看，Promise是一个单次写寄存器，`co_return`描述的实际上就是这个协程函数对于Promise对象的最终写入行为。(也就是最终被转换为注释中的`promise.return_value(a + b)`)  
 而`co_await`关键字相比之下更加复杂，理解`co_await`将是理解协程挂起机制的关键，让我们单独开辟一小节来讲解吧。
-# 1.3 协程的挂起与恢复：理解co_await关键字及编译器的处理
+## 1.3 协程的挂起与恢复：理解co_await关键字及编译器的处理
 编译器在处理`co_await <expr>`时，进行了如下伪代码转换(请读者仔细体会对co_await的伪代码转换，这对于理解cpp20的无栈协程机制至关重要！)：
 ```cpp
 // 由编译器生成
@@ -159,7 +190,7 @@ co_await <expr>
 }
 ```
 接来下咱们逐行拆分讲解上面这段伪代码。  
-# 1.3.1 对co_await \<expr\>表达式的两步编译期转换
+### 1.3.1 对co_await \<expr\>表达式的两步编译期转换
 首先编译器对于\<expr\>进行了两步转换，也就是\<expr\> -> awaitable -> awaiter：
 ```cpp
 // 由编译器生成
@@ -197,7 +228,7 @@ decltype(auto) get_awaiter(Awaitable &&awaitable) {
 ```
 值得注意的是，如果不存在定制行为，那么上述两步转换流程是编译器在编译期对\<expr\>进行的，没有运行时开销, 最终`co_await <expr>`表达式返回的`awaiter`对象就是\<expr\>本身。  
 读者可能对于为何要引入这种深度定制机制存在疑惑，别急，在第五节中咱们将看到这种机制如何在协程间的链式调用过程中发挥作用。  
-# 1.3.2 通过Awaiter定制挂起和恢复行为
+### 1.3.2 通过Awaiter定制挂起和恢复行为
 接下来让我们把目光转向两步转换后的Awaiter：
 ```cpp
 // 由编译器生成
@@ -234,7 +265,7 @@ if (!awaiter.await_ready()) {//是否需要挂起协程
 }
 ```
 3. T await_resume() : 在协程恢复之后，该函数的返回值将作为co_await \<expr\>最终的结果。  
-# 1.4 再回顾coro_add()
+## 1.4 再回顾coro_add()
 了解了编译器是如何处理Future/Promise，和co_return/co_await的细节后，咱们再回过头来看`coro_add()`函数就不难理解背后的细节了：  
 ```cpp
 class MyPromise;
@@ -393,7 +424,7 @@ print at: int main():line 84, addr:0x16e83820, size:48:
 0x16e83840:     0x22222222      0x22222222      0x22222222      0x00000004
 Result: 3
 ```
-# 2.1 协程初始化后的第一次挂起 (initial_suspend)
+## 2.1 协程初始化后的第一次挂起 (initial_suspend)
 ```
 print at: std::suspend_always MyPromise::initial_suspend():line 55, addr:0x16e83820, size:48:
 0x16e83820:     0x00408e48      0x00000000      0x00409408      0x00000000
@@ -432,7 +463,7 @@ print at: std::suspend_always MyPromise::initial_suspend():line 55, addr:0x16e83
 在`coro_addr + 16`的位置内容为0x11111111，这是MyPromisele类型的magic number，可见promise对象就存储在这个位置。  
 接下来`coro_addr + 20`和`coro_addr + 24`的内容分别为1和2，也就是对应coro_add()函数调用时传进来的两个实参。  
 其余的内存位置，从`[coro_addr + 28, coro_addr + 48)`均为0，目前还不好区分它们的内容。
-# 2.2 协程的第二次挂起（co_await）
+## 2.2 协程的第二次挂起（co_await）
 ```
 print at: void empty_suspend_operation()::(anonymous struct)::await_suspend(std::coroutine_handle<>) const:line 66, addr:0x16e83820, size:48:
 0x16e83820:     0x00408e48      0x00000000      0x00409408      0x00000000
@@ -442,7 +473,7 @@ print at: void empty_suspend_operation()::(anonymous struct)::await_suspend(std:
 在协程第二次挂起，也就是第一次执行到co_await语句时，栈上变量var_in_coroutine已经经历了初始化动作，因此可以在`coro_addr + 28`位置观察到magic number=0x33333333。  
 之后，在编译器背后进行的co_await语句的两步转换动作中，实际上生成了一个栈上的awaitable对象（对应empty_suspend_operation()），也就是`coro_addr + 32`位置的magic number=0x22222222。  
 最后，当协程挂起后，协程的恢复点被更新到协程帧的最后，也就是`coro_addr + 44`位置状态：0 -> 1。
-# 2.3 协程的第三次挂起（co_await）
+## 2.3 协程的第三次挂起（co_await）
 ```
 print at: void empty_suspend_operation()::(anonymous struct)::await_suspend(std::coroutine_handle<>) const:line 66, addr:0x16e83820, size:48:
 0x16e83820:     0x00408e48      0x00000000      0x00409408      0x00000000
@@ -451,7 +482,7 @@ print at: void empty_suspend_operation()::(anonymous struct)::await_suspend(std:
 ```
 在协程第三次挂起，也就是第二次执行co_await语句时，又生成了一个新的awaitable对象，可以看到`coro_addr + 34`位置的magic number=0x22222222。  
 并且，协程的挂起位点再次更新，`coro_addr + 44`位置的状态：1 -> 2。
-# 2.4 协程的第四次挂起（co_await）
+## 2.4 协程的第四次挂起（co_await）
 ```
 print at: void empty_suspend_operation()::(anonymous struct)::await_suspend(std::coroutine_handle<>) const:line 66, addr:0x16e83820, size:48:
 0x16e83820:     0x00408e48      0x00000000      0x00409408      0x00000000
@@ -459,7 +490,7 @@ print at: void empty_suspend_operation()::(anonymous struct)::await_suspend(std:
 0x16e83840:     0x22222222      0x22222222      0x22222222      0x00000003
 ```
 同上一次挂起流程，在`coro_addr + 38`位置的创建了新的awaitable对象，并且更新了`coro_addr + 44`位置的状态：2 -> 3。  
-# 2.5 协程的第五次挂起（final_suspend）
+## 2.5 协程的第五次挂起（final_suspend）
 ```
 print at: std::suspend_always MyPromise::final_suspend():line 56, addr:0x16e83820, size:48:
 0x16e83820:     0x00408e48      0x00000000      0x00409408      0x00000000
@@ -467,7 +498,7 @@ print at: std::suspend_always MyPromise::final_suspend():line 56, addr:0x16e8382
 0x16e83840:     0x22222222      0x22222222      0x22222222      0x00000003
 ```
 第五次挂起是协程帧的最后一次挂起，通过co_return将协程最终结果存储到了promise对象中，也就是修改了`coro_addr + 16`的状态：0x11111111 -> 3
-# 2.6 对协程的最后一次观测
+## 2.6 对协程的最后一次观测
 ```
 print at: int main():line 84, addr:0x16e83820, size:48:
 0x16e83820:     0x00000000      0x00000000      0x00409408      0x00000000
@@ -477,7 +508,7 @@ print at: int main():line 84, addr:0x16e83820, size:48:
 在main函数退出前，对已经被标记为'done'状态的协程作了最后一次内存观测动作，可以看到相比于上一次观测，协程帧初始位置的resume_fn()函数指针被清空了。  
 在clang的编译器处理中，std::coroutine_handle\<T\>::done()就是通过观测协程帧的首个8字节是否为0来判断协程是否结束的：
 ![alt text](picture/coroutine_handle_done.png)
-# 2.7 小结
+## 2.7 小结
 example2.cpp在example1.cpp的基础上，增加了内存观测手段，并通过在协程关键位置对协程帧状态的观测，可以得知如下事实：
 1. 整个协程帧都分配在堆内存上，是一整块连续的内存，并且其大小可在编译期得知。
 2. 协程帧存储了协程函数的恢复操作和销毁操作的指针。
@@ -704,7 +735,7 @@ int main() {
 ```
 可以看到两个协程函数在获取输入的过程中，是交替获取的，这体现了scheduler在event_loop()中的对协程的交替调度过程。
 # 5 协程与其他协程/普通函数的互调用（example5.cpp）
-# 5.1 协程调用普通函数
+## 5.1 协程调用普通函数
 根据前面的内容，相信读者已经对协程内部的内存布局、协程对象本身的堆内存属性，以及外围框架对协程的调度过程有了认识，在本节中咱们重点关注协程与其他协程/普通函数的交互流程。  
 首先从协程调用普通函数的流程讲起:  
 ![alt text](picture/func->coroutine.png)
@@ -729,7 +760,7 @@ bar()函数结束后，线程控制权回到foo()协程帧内并继续执行直�
 3. suspend:  
 当bar()执行到一半需要等待一个异步操作完成时，bar()的协程帧挂起，线程控制权转移回栈上。  
 
-# 5.2 协程调用协程 - 恢复
+## 5.2 协程调用协程 - 恢复
 接下来咱们看从scheduler恢复已挂起的嵌套协程：  
 ![alt text](picture/coroutine->corooutine->resume.png)
 1. resume:  
@@ -744,7 +775,7 @@ foo()继续执行协程帧中的内容，当执行结束后它将结果返回给
 1. 中途挂起，控制权直接回到scheduler。
 2. 执行完毕挂起，控制权回到父协程。
 
-# 5.3 实现协程间的链式调用示例——详解example5.cpp
+## 5.3 实现协程间的链式调用示例——详解example5.cpp
 首先来定义`LinkedCoroutine`结构将协程帧串联起来：
 ```cpp
 // example5.cpp
@@ -962,7 +993,7 @@ int main() {
 // 28 :free memory for coroutine frame:0x11db7820
 ```
 读者可以根据本节示例的日志输出复原协程链式调用和恢复的详细过程，仔细体会协程嵌套的细节。
-# 5.4 无栈协程的本质局限——无栈属性的传递
+## 5.4 无栈协程的本质局限——无栈属性的传递
 协程调用普通函数，以及协程调用协程的问题在对协程原语的封装后，都是可解决的，那么协程foo() -> 函数bar() -> 协程baz()的情况呢？  
 这个问题在无栈协程中是不可解的：  
 ![alt text](picture/coroutine->func->coroutine.png)
@@ -1004,7 +1035,7 @@ used bytes:38.15MB
 挂起/恢复10000000协程(x3)耗时:54908425ns, 平均1.83ns
 used bytes:381.47MB
 ```
-# 6.1 CPU优势
+## 6.1 CPU优势
 在没有特殊定制内存分配器，使用默认new的情况下，可以看到协程的挂起恢复流程都在纳秒级别。  
 3.2GHz CPU对应的时钟周期（不考虑睿频）为0.3125ns，一次协程挂起/恢复流程只是若干个CPU时钟周期而已，协程的实现几乎不可能存在更高效的方案，这也对应了C++标准的“零开销抽象”原则。  
 相比之下，有栈协程的切换需要替换若干寄存器，需要将当前寄存器的内容写入堆上暂存，会造成数据的cache miss以及指令的cache miss，替换耗时可能长达us级别。  
@@ -1012,7 +1043,7 @@ used bytes:381.47MB
 1. 在协程切换这个环节纠结是1us还是1ns的意义有多大？根据阿姆达尔定律，一个环节的优化对整体性能的提升取决于这个环节的占比，协程的挂起与恢复通常伴随着IO操作的异步进行，IO操作通常在百us或者ms级别以上，相对而言即便是最糟糕的协程实现方案也对整体性能的影响也不大。
 2. 笔者的测试没有考虑协程框架的因素，可以说几ns的开销是C++标准无栈协程方案的性能上限，但工程实现中，项目对协程的使用必须要依赖于一个完整的协程框架，这必然会引入额外的性能开销，到底能有多接近几ns的开销取决于你选择的协程框架的性能优化程度。  
 
-# 6.2 内存优势
+## 6.2 内存优势
 相比较标准协程对于CPU资源的节省，读者应该重视的其实是无栈协程的另一个优势——对内存资源的节省。  
 在exampe6.cpp的测试中，可以观测到1千万简单协程并发的内存开销不过是400MB不到的内存。  
 如果考虑有栈协程的实现原理：  
@@ -1023,12 +1054,12 @@ used bytes:381.47MB
 要知道有些操作系统甚至只支持最多2TB的内存。  
 即便经过详细的设计，可以将栈大小调整为10KB——这已经是相当激进的优化了，1千万并发仍然需要消耗100GB的内存，至少在笔者的笔记本上(16GB)是无法支持这么多并发的。  
 
-# 6.3 生态优势
+## 6.3 生态优势
 标准就是标准，标准的生态是任何其他三方生态无法比拟的。  
 如果今天你购买的民用设备采用的充电口不是type-c的，那么我敢肯定这个产品要么迭代跟进这个时代的标准，要么在未来几年的市场竞争中被彻底淘汰。  
 由英伟达主导的异构计算通用抽象——`std::executor`已经进入了CPP26标准，CPP标准协程便是executor的实现基础，未来的计算密集型任务将不仅局限于在CPU中进行，如果想要吃到这些时代技术演进的红利，就必须紧跟标准的步伐。  
 
-# 6.4 协程方案对比
+## 6.4 协程方案对比
 基于6.2节提及的内存优势以及6.3节中提及的标准生态优势，在笔者的认知中根本不存在第二个替代方案，但读者也许想要更全面的对比。  
 无奈笔者既无兴趣也无精力学习各种业界成熟的协程方案的细节，这里直接贴上知乎大佬的对比结果：  
 [C++20 Coroutine 性能测试 (附带和一些常用协程库的对比)](https://zhuanlan.zhihu.com/p/85440615)
