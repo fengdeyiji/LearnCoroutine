@@ -15,9 +15,9 @@ CURRENT_DIR = os.getcwd()
 if args.compile:
   compile_type = ''
   if args.compile == "config":
-    assert_do("xmake project -k compile_commands --root")
+    assert_do("xmake project -k compile_commands")
     exit(0)
   else:
-    assert_do("xmake clean --root")
-    assert_do("xmake f -m {} --root".format(args.compile))
-    assert_do("xmake -v -D --root")
+    assert_do("xmake clean")
+    assert_do("xmake f -m {}".format(args.compile))
+    assert_do("xmake -v -D")

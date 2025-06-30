@@ -6,11 +6,19 @@ set_toolset("cxx", "clang++")
 set_toolset("ld", "clang++")
 set_toolset("sh", "clang++")
 -- 基于 LLVM 基本路径设置 include 路径和 lib 路径
-llvm_prefix = "/root/.local/LLVM"
+llvm_prefix = "/home/admin/.local/LLVM"
+target_triplet = nil
+if is_arch("x86_64") then
+    target_triplet = "x86_64-unknown-linux-gnu"
+elseif is_arch("aarch64") then
+    target_triplet = "aarch64-unknown-linux-gnu"
+else
+    target_triplet = "x86_64-unknown-linux-gnu" -- 默认
+end
 add_includedirs("src",
                 llvm_prefix .. "/include/c++/v1",
-                llvm_prefix .. "/include/aarch64-unknown-linux-gnu/c++/v1")
-add_linkdirs(llvm_prefix .. "/lib/aarch64-unknown-linux-gnu")
+                llvm_prefix .. "/include/" .. target_triplet .. "/c++/v1")
+add_linkdirs(llvm_prefix .. "/lib/" .. target_triplet)
 -- 设置 C++ 标准库为 libc++
 add_cxxflags("-std=c++23", "-stdlib=libc++", "-fmodules")
 add_ldflags("-static", "-stdlib=libc++", "-nostdlib++", "-lc++", "-lc++abi", "-lpthread")
